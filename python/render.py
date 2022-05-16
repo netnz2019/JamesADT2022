@@ -2,12 +2,26 @@ import os
 import boto3
 import requests
 import argparse
+import warnings
 
+# Kekule Games API URL
 API_BASE_URL = "https://kekule.games/GL/API/Gamelist/"
+
+# Get Kekule Games API credentials from the environment
 API_AUTH = os.environ['API_KEY']
 
+
 def check_gid_input(value):
+    """
+    This Function checks the game ID against the Kekule Games Server to ensure that the supplied game actually exists.
+    If the ID does NOT exist it raises an argparse error
+
+    :param value: Input Game ID
+    :return: Input Game ID if it is valid
+    """
     ivalue = int(value)
+
+    # no game ID should be less than 0. check this first to avoid unnecessary requests to the Kekule Games API
     if ivalue < 0:
         raise argparse.ArgumentTypeError("%s is an invalid Game ID" % value)
     elif requests.request('GET', f"{API_BASE_URL}/{value}/", headers = {'Authorization': API_AUTH}).status_code != 200:
@@ -21,10 +35,28 @@ class Round:
         number = 0
 
     _Turns = {}
-    number = 0
+    __turn_counter = 0
 
     def get_turn(self, number):
-        return self._Turns[number]
+        try:
+            return self._Turns[number]
+        except KeyError:
+            raise KeyError("That Turn does not exist within this Round")
+
+    def get_number_turns(self):
+        return len(self._Turns)
+
+    def add_turn(self, in_list, t_number=-1):
+        if t_number != -1:
+            number = t_number
+        else:
+            self.__turn_counter += 1
+            number = self.__turn_counter
+
+        self._Turns[number] = self.Turn()
+        self._Turns[number].list = in_list
+        self._Turns[number].number = number
+
 
 
 arg_parser = argparse.ArgumentParser(description='Render Round')
@@ -46,9 +78,41 @@ args = arg_parser.parse_args()
 game_id = args.GID
 round_id = args.RID
 
-s3 = boto3.client("s3")
-s3.download_file(
-    Bucket="kekule-web-private", Key=f"gamelogs/{game_id}.gamelog", Filename="game.gamelog"
-)
+
+# Uncomment to test
+# s3 = boto3.client("s3")
+# s3.download_file(
+#     Bucket="kekule-web-private", Key=f"gamelogs/{game_id}.gamelog", Filename="game.gamelog"
+# )
+
+with open('game.gamelog', 'r') as file:
+    content = file.read()
+    content = content.partition(f'game = {round_id}')
+    content = content[2].partition(f'game = {int(round_id) + 1}')
+    content = content[0].split('\n')
+    if content[0] == '':
+        content.pop(0)
+    if content[-1] == '':
+        content.pop(-1)
+    elif content[-1] == "end":
+        content.pop(-1)
+data = Round()
+
+error_count = 0
+for turn in content:
+    turn = eval(turn)
+    for tup in turn:
+        if tup[0] not in range(0, 100) or tup[1] not in range(0, 100):
+            error_count += 1
+            if error_count <= 3:
+                warnings.warn(f"Token outside board! Ignoring Turn. {error_count} of 3", RuntimeWarning)
+            else:
+                raise RuntimeError(f"Token outside board! To many stray Tokens. Please check the log file {game_id}.gamelog, round {round_id}. Terminating")
+    data.add_turn(turn)
+
+for turn_number in range(1, data.get_number_turns()):
+    turn = Round.get_turn(turn_number)
+
+
 
 
