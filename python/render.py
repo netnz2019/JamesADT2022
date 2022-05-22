@@ -3,6 +3,8 @@ import boto3
 import requests
 import argparse
 import warnings
+from math import cos, sin, pi
+from PIL import Image, ImageDraw
 
 # Kekule Games API URL
 API_BASE_URL = "https://kekule.games/GL/API/Gamelist/"
@@ -27,6 +29,13 @@ def check_gid_input(value):
     elif requests.request('GET', f"{API_BASE_URL}/{value}/", headers = {'Authorization': API_AUTH}).status_code != 200:
         raise argparse.ArgumentTypeError("%s Does not exist on the system" % value)
     return ivalue
+
+
+def convert_coords(x, y):
+    x_prime = 960 + cos(30 * pi / 180) * x - cos(30 * pi / 180) * y
+    y_prime = sin(30 * pi / 180) * x + sin(30 * pi / 180) * y
+    print(x_prime, y_prime)
+    return int(x_prime), int(y_prime)
 
 
 class Round:
@@ -111,7 +120,25 @@ for turn in content:
     data.add_turn(turn)
 
 for turn_number in range(1, data.get_number_turns()):
-    turn = Round.get_turn(turn_number)
+    turn = data.get_turn(turn_number)
+
+    img = Image.new("RGB", (1920, 1080))
+    img1 = ImageDraw.Draw(img)
+    img1.rectangle((0, 0) + img.size, fill='white')
+
+    img1.polygon([(convert_coords(0, 0)), (convert_coords(0, 1080)), (convert_coords(1080, 1080)), (convert_coords(1080, 0))], "white", "black")
+
+    # vertical lines at an interval of "line_distance" pixel
+    for x in range(10, 1080, 10):
+        img1.line(convert_coords(x, 0) + convert_coords(x, img.height), fill="#b4b4b4")
+    # # horizontal lines at an interval of "line_distance" pixel
+    # for y in range(line_distance, img.height, line_distance):
+    #     img1.line((0, y) + (img.width, y), fill="#b4b4b4")
+
+    img1.polygon(
+        [(convert_coords(0, 0)), (convert_coords(0, 10)), (convert_coords(10, 10)), (convert_coords(10, 0))],
+        "yellow")
+
 
 
 
