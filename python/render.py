@@ -1,10 +1,14 @@
 import os
+import cv2
+import glob
 import boto3
 import requests
 import argparse
 import warnings
+from natsort import natsorted
 from math import cos, sin, pi
 from PIL import Image, ImageDraw
+import moviepy.editor as moviepy
 
 # Kekule Games API URL
 API_BASE_URL = "https://kekule.games/GL/API/Gamelist/"
@@ -34,8 +38,12 @@ def check_gid_input(value):
 def convert_coords(x, y):
     x_prime = 960 + cos(30 * pi / 180) * x - cos(30 * pi / 180) * y
     y_prime = sin(30 * pi / 180) * x + sin(30 * pi / 180) * y
-    print(x_prime, y_prime)
     return int(x_prime), int(y_prime)
+    # return x, y
+
+
+def clamp(n, minn, maxn):
+    return max(min(maxn, n), minn)
 
 
 class Round:
@@ -67,6 +75,17 @@ class Round:
         self._Turns[number].number = number
 
 
+def convert_frames_to_video(pathIn,pathOut,fps):
+    frame_size = (1920, 1080)
+
+    out = cv2.VideoWriter(pathOut, cv2.VideoWriter_fourcc(*'MP4V'), fps, frame_size)
+
+    for filename in natsorted(glob.glob(os.path.join(pathIn, '*.png'))):
+        img = cv2.imread(filename)
+        out.write(img)
+
+    out.release()
+
 
 arg_parser = argparse.ArgumentParser(description='Render Round')
 
@@ -89,10 +108,10 @@ round_id = args.RID
 
 
 # Uncomment to test
-# s3 = boto3.client("s3")
-# s3.download_file(
-#     Bucket="kekule-web-private", Key=f"gamelogs/{game_id}.gamelog", Filename="game.gamelog"
-# )
+s3 = boto3.client("s3")
+s3.download_file(
+    Bucket="kekule-web-private", Key=f"gamelogs/{game_id}.gamelog", Filename="game.gamelog"
+)
 
 with open('game.gamelog', 'r') as file:
     content = file.read()
@@ -126,18 +145,35 @@ for turn_number in range(1, data.get_number_turns()):
     img1 = ImageDraw.Draw(img)
     img1.rectangle((0, 0) + img.size, fill='white')
 
-    img1.polygon([(convert_coords(0, 0)), (convert_coords(0, 1080)), (convert_coords(1080, 1080)), (convert_coords(1080, 0))], "white", "black")
+    img1.polygon([(convert_coords(0, 0)), (convert_coords(0, 1010)), (convert_coords(1010, 1010)), (convert_coords(1010, 0))], "white", "black")
 
     # vertical lines at an interval of "line_distance" pixel
-    for x in range(10, 1080, 10):
-        img1.line(convert_coords(x, 0) + convert_coords(x, img.height), fill="#b4b4b4")
-    # # horizontal lines at an interval of "line_distance" pixel
-    # for y in range(line_distance, img.height, line_distance):
-    #     img1.line((0, y) + (img.width, y), fill="#b4b4b4")
+    for x in range(10, 1010, 10):
+        img1.line(convert_coords(x, 0) + convert_coords(x, 1010), fill="#b4b4b4")
+    # horizontal lines at an interval of "line_distance" pixel
+    for y in range(10, 1010, 10):
+        img1.line(convert_coords(0, y) + convert_coords(1010, y), fill="#b4b4b4")
 
-    img1.polygon(
-        [(convert_coords(0, 0)), (convert_coords(0, 10)), (convert_coords(10, 10)), (convert_coords(10, 0))],
-        "yellow")
+    for tup in turn.list:
+        if tup[3] == 'B':
+            rgb = (clamp(220-(11*int(tup[2])), 0, 255), clamp(220-(11*int(tup[2])), 0, 255), 255)
+            hex_result = "".join([format(val, '02X') for val in rgb])
+        elif tup[3] == 'R':
+            rgb = (255, clamp(220-(11*int(tup[2])), 0, 255), clamp(220-(11*int(tup[2])), 0, 255))
+            hex_result = "".join([format(val, '02X') for val in rgb])
+
+        img1.polygon(
+            [(convert_coords(tup[0] * 10, tup[1] * 10)),
+             (convert_coords(tup[0] * 10, (tup[1] * 10) + 10)),
+             (convert_coords((tup[0] * 10) + 10, (tup[1] * 10) + 10)),
+             (convert_coords((tup[0] * 10) + 10, tup[1] * 10))],
+            fill=f'#{hex_result}'
+        )
+    img.save(f"{turn_number}.png")
+
+convert_frames_to_video(os.getcwd(), f'{game_id}_{round_id}.mp4v', 24)
+
+s3.upload_file(f'{game_id}_{round_id}.mp4', "kekule-web-media", f'video/{game_id}_{round_id}.mp4',)
 
 
 
