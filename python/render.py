@@ -11,7 +11,7 @@ from PIL import Image, ImageDraw
 import moviepy.editor as moviepy
 
 # Kekule Games API URL
-API_BASE_URL = "https://kekule.games/GL/API/Gamelist/"
+API_BASE_URL = "https://kekule.games/GL/API/Gamelist"
 
 # Get Kekule Games API credentials from the environment
 API_AUTH = os.environ['API_KEY']
@@ -30,7 +30,7 @@ def check_gid_input(value):
     # no game ID should be less than 0. check this first to avoid unnecessary requests to the Kekule Games API
     if ivalue < 0:
         raise argparse.ArgumentTypeError("%s is an invalid Game ID" % value)
-    elif requests.request('GET', f"{API_BASE_URL}/{value}/", headers = {'Authorization': API_AUTH}).status_code != 200:
+    elif requests.request('GET', f"{API_BASE_URL}/{ivalue}/", headers={'Authorization': API_AUTH}).status_code != 200:
         raise argparse.ArgumentTypeError("%s Does not exist on the system" % value)
     return ivalue
 
@@ -78,7 +78,7 @@ class Round:
 def convert_frames_to_video(pathIn,pathOut,fps):
     frame_size = (1920, 1080)
 
-    out = cv2.VideoWriter(pathOut, cv2.VideoWriter_fourcc(*'MP4V'), fps, frame_size)
+    out = cv2.VideoWriter(pathOut, cv2.VideoWriter_fourcc(*'avc1'), fps, frame_size)
 
     for filename in natsorted(glob.glob(os.path.join(pathIn, '*.png'))):
         img = cv2.imread(filename)
@@ -171,11 +171,13 @@ for turn_number in range(1, data.get_number_turns()):
         )
     img.save(f"{turn_number}.png")
 
-convert_frames_to_video(os.getcwd(), f'{game_id}_{round_id}.mp4v', 24)
+convert_frames_to_video(os.getcwd(), f'{game_id}_{round_id}.mp4', 24)
 
 s3.upload_file(f'{game_id}_{round_id}.mp4', "kekule-web-media", f'video/{game_id}_{round_id}.mp4',)
 
 
+payload = {'rendered': True}
+headers = {'Authorization': API_AUTH}
+url = f"https://kekule.games/GL/API/Gamelist/{game_id}/"
 
-
-
+response = requests.request("PUT", url, headers=headers, data=payload)
