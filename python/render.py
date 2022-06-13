@@ -108,10 +108,10 @@ round_id = args.RID
 
 
 # Uncomment to test
-s3 = boto3.client("s3")
-s3.download_file(
-    Bucket="kekule-web-private", Key=f"gamelogs/{game_id}.gamelog", Filename="game.gamelog"
-)
+# s3 = boto3.client("s3")
+# s3.download_file(
+#     Bucket="kekule-web-private", Key=f"gamelogs/{game_id}.gamelog", Filename="game.gamelog"
+# )
 
 with open('game.gamelog', 'r') as file:
     content = file.read()
@@ -154,6 +154,22 @@ for turn_number in range(1, data.get_number_turns()):
     for y in range(10, 1010, 10):
         img1.line(convert_coords(0, y) + convert_coords(1010, y), fill="#b4b4b4")
 
+    img1.polygon(
+        [(convert_coords(0, 1010)),
+         (85, 523),
+         (960, 1030),
+         (960, 1010)],
+        fill='grey'
+    )
+
+    img1.polygon(
+        [(1835, 505),
+         (1835, 525),
+         (960, 1030),
+         (960, 1010)],
+        fill='grey'
+    )
+
     for tup in turn.list:
         if tup[3] == 'B':
             rgb = (clamp(220-(11*int(tup[2])), 0, 255), clamp(220-(11*int(tup[2])), 0, 255), 255)
@@ -169,11 +185,22 @@ for turn_number in range(1, data.get_number_turns()):
              (convert_coords((tup[0] * 10) + 10, tup[1] * 10))],
             fill=f'#{hex_result}'
         )
+
+        #TODO change to make sprit 3d
+        img1.polygon(
+            [(convert_coords(tup[0] * 10 + 2, tup[1] * 10 + 2)),
+             (convert_coords(tup[0] * 10 + 2, (tup[1] * 10) + 10 + 2)),
+             (convert_coords((tup[0] * 10 + 2) + 10, (tup[1] * 10 + 2) + 10)),
+             (convert_coords((tup[0] * 10 + 2) + 10, tup[1] * 10 + 2))],
+            fill=f'#{hex_result}'
+        )
+        img.save('test.png')
+
     img.save(f"{turn_number}.png")
 
 convert_frames_to_video(os.getcwd(), f'{game_id}_{round_id}.mp4', 24)
 
-s3.upload_file(f'{game_id}_{round_id}.mp4', "kekule-web-media", f'video/{game_id}_{round_id}.mp4',)
+# s3.upload_file(f'{game_id}_{round_id}.mp4', "kekule-web-media", f'video/{game_id}_{round_id}.mp4',)
 
 
 payload = {'rendered': True}
