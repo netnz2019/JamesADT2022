@@ -75,7 +75,7 @@ class Round:
         self._Turns[number].number = number
 
 
-def convert_frames_to_video(pathIn,pathOut,fps):
+def convert_frames_to_video(pathIn, pathOut, fps):
     frame_size = (1920, 1080)
 
     out = cv2.VideoWriter(pathOut, cv2.VideoWriter_fourcc(*'avc1'), fps, frame_size)
@@ -106,12 +106,11 @@ args = arg_parser.parse_args()
 game_id = args.GID
 round_id = args.RID
 
-
 # Uncomment to test
-# s3 = boto3.client("s3")
-# s3.download_file(
-#     Bucket="kekule-web-private", Key=f"gamelogs/{game_id}.gamelog", Filename="game.gamelog"
-# )
+s3 = boto3.client("s3")
+s3.download_file(
+    Bucket="kekule-web-private", Key=f"gamelogs/{game_id}.gamelog", Filename="game.gamelog"
+)
 
 with open('game.gamelog', 'r') as file:
     content = file.read()
@@ -135,7 +134,8 @@ for turn in content:
             if error_count <= 3:
                 warnings.warn(f"Token outside board! Ignoring Turn. {error_count} of 3", RuntimeWarning)
             else:
-                raise RuntimeError(f"Token outside board! To many stray Tokens. Please check the log file {game_id}.gamelog, round {round_id}. Terminating")
+                raise RuntimeError(
+                    f"Token outside board! To many stray Tokens. Please check the log file {game_id}.gamelog, round {round_id}. Terminating")
     data.add_turn(turn)
 
 for turn_number in range(1, data.get_number_turns()):
@@ -145,7 +145,9 @@ for turn_number in range(1, data.get_number_turns()):
     img1 = ImageDraw.Draw(img)
     img1.rectangle((0, 0) + img.size, fill='white')
 
-    img1.polygon([(convert_coords(0, 0)), (convert_coords(0, 1010)), (convert_coords(1010, 1010)), (convert_coords(1010, 0))], "white", "black")
+    img1.polygon(
+        [(convert_coords(0, 0)), (convert_coords(0, 1010)), (convert_coords(1010, 1010)), (convert_coords(1010, 0))],
+        "white", "black")
 
     # vertical lines at an interval of "line_distance" pixel
     for x in range(10, 1010, 10):
@@ -172,28 +174,51 @@ for turn_number in range(1, data.get_number_turns()):
 
     for tup in turn.list:
         if tup[3] == 'B':
-            rgb = (clamp(220-(11*int(tup[2])), 0, 255), clamp(220-(11*int(tup[2])), 0, 255), 255)
+            rgb = (clamp(220 - (11 * int(tup[2])), 0, 255), clamp(220 - (11 * int(tup[2])), 0, 255), 255)
             hex_result = "".join([format(val, '02X') for val in rgb])
+            outline_cl = 'blue'
         elif tup[3] == 'R':
-            rgb = (255, clamp(220-(11*int(tup[2])), 0, 255), clamp(220-(11*int(tup[2])), 0, 255))
+            rgb = (255, clamp(220 - (11 * int(tup[2])), 0, 255), clamp(220 - (11 * int(tup[2])), 0, 255))
             hex_result = "".join([format(val, '02X') for val in rgb])
+            outline_cl = 'red'
+
+        # TODO change to make sprit 3d
+        bottom_coords = [(convert_coords(tup[0] * 10, (tup[1] * 10) + 10)),
+                         (convert_coords((tup[0] * 10) + 10, (tup[1] * 10) + 10)),
+                         (convert_coords((tup[0] * 10) + 10, tup[1] * 10))]
+
+        in_coords = [(convert_coords(tup[0] * 10 + 2, tup[1] * 10 + 2)),
+                     (convert_coords(tup[0] * 10 + 2, (tup[1] * 10) + 10 - 2)),
+                     (convert_coords((tup[0] * 10) + 10 - 2, (tup[1] * 10) + 10 - 2)),
+                     (convert_coords((tup[0] * 10) + 10 - 2, tup[1] * 10 + 2))]
+
+        top_coords = []
+
+        for tup in in_coords:
+            tup_out = (tup[0], tup[1] - 5)
+            top_coords.append(tup_out)
+
+        fill_coords = bottom_coords.copy()
+        int_coords = top_coords.copy()[1:]
+        int_coords.sort(reverse=True)
+        fill_coords.extend(int_coords)
 
         img1.polygon(
-            [(convert_coords(tup[0] * 10, tup[1] * 10)),
-             (convert_coords(tup[0] * 10, (tup[1] * 10) + 10)),
-             (convert_coords((tup[0] * 10) + 10, (tup[1] * 10) + 10)),
-             (convert_coords((tup[0] * 10) + 10, tup[1] * 10))],
+            fill_coords,
             fill=f'#{hex_result}'
         )
 
-        #TODO change to make sprit 3d
-        img1.polygon(
-            [(convert_coords(tup[0] * 10 + 2, tup[1] * 10 + 2)),
-             (convert_coords(tup[0] * 10 + 2, (tup[1] * 10) + 10 + 2)),
-             (convert_coords((tup[0] * 10 + 2) + 10, (tup[1] * 10 + 2) + 10)),
-             (convert_coords((tup[0] * 10 + 2) + 10, tup[1] * 10 + 2))],
-            fill=f'#{hex_result}'
+        img1.line(
+            bottom_coords,
+            fill=outline_cl,
         )
+
+        img1.polygon(
+            top_coords,
+            fill=f'#{hex_result}',
+            outline=outline_cl
+        )
+
         img.save('test.png')
 
     img.save(f"{turn_number}.png")
