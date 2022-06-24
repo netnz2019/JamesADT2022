@@ -1,4 +1,5 @@
 import os
+import io
 import cv2
 import glob
 import boto3
@@ -139,12 +140,12 @@ for turn in content:
                     f"Token outside board! To many stray Tokens. Please check the log file {game_id}.gamelog, round {round_id}. Terminating")
     data.add_turn(turn)
 
-rtokens = []
-btokens = []
+rstr_all = []
+bstr_all = []
 
 for turn_number in range(1, data.get_number_turns()):
-    rcount = 0
-    bcount = 0
+    rstr = 0
+    bstr = 0
     all_draw = []
     turn = data.get_turn(turn_number)
 
@@ -184,12 +185,12 @@ for turn_number in range(1, data.get_number_turns()):
             rgb = (clamp(220 - (11 * int(tup[2])), 0, 255), clamp(220 - (11 * int(tup[2])), 0, 255), 255)
             hex_result = "".join([format(val, '02X') for val in rgb])
             outline_cl = 'blue'
-            bcount += 1
+            bstr += tup[2]
         elif tup[3] == 'R':
             rgb = (255, clamp(220 - (11 * int(tup[2])), 0, 255), clamp(220 - (11 * int(tup[2])), 0, 255))
             hex_result = "".join([format(val, '02X') for val in rgb])
             outline_cl = 'red'
-            rcount += 1
+            rstr += tup[2]
 
         # TODO change to make sprit 3d
         bottom_coords = [(convert_coords(tup[0] * 10, (tup[1] * 10) + 10)),
@@ -237,14 +238,21 @@ for turn_number in range(1, data.get_number_turns()):
             outline=token["outline"]
         )
 
-    rtokens.append(rcount)
-    btokens.append(bcount)
-    x = [i for i in range(len(btokens))]
+    rstr_all.append(rstr)
+    bstr_all.append(bstr)
+    x = [i for i in range(len(bstr_all))]
 
-    plt.plot(x, rtokens, color='red')
-    plt.plot(x, btokens, color='blue')
+    plt.plot(x, rstr_all, color='red')
+    plt.plot(x, bstr_all, color='blue')
     plt.xlabel("Turn Number")
-    plt.ylabel("Amount of squares")
+    plt.ylabel("Total Strength")
+
+    img_buf = io.BytesIO()
+
+    plt.savefig(img_buf, format='png')
+    plot = Image.open(img_buf)
+    plot.thumbnail((400, 400), Image.ANTIALIAS)
+    img.paste(plot, (40, 0))
 
     img.save('test.png')
 
