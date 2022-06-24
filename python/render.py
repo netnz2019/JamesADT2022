@@ -8,7 +8,7 @@ import warnings
 from natsort import natsorted
 from math import cos, sin, pi
 from PIL import Image, ImageDraw
-from matplotlib import pyplot
+from matplotlib import pyplot as plt
 import moviepy.editor as moviepy
 
 # Kekule Games API URL
@@ -241,7 +241,10 @@ for turn_number in range(1, data.get_number_turns()):
     btokens.append(bcount)
     x = [i for i in range(len(btokens))]
 
-    plot = pyplot.plot(rtokens, x)
+    plt.plot(x, rtokens, color='red')
+    plt.plot(x, btokens, color='blue')
+    plt.xlabel("Turn Number")
+    plt.ylabel("Amount of squares")
 
     img.save('test.png')
 
