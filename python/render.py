@@ -8,6 +8,7 @@ import warnings
 from natsort import natsorted
 from math import cos, sin, pi
 from PIL import Image, ImageDraw
+from matplotlib import pyplot
 import moviepy.editor as moviepy
 
 # Kekule Games API URL
@@ -107,10 +108,10 @@ game_id = args.GID
 round_id = args.RID
 
 # Uncomment to test
-s3 = boto3.client("s3")
-s3.download_file(
-    Bucket="kekule-web-private", Key=f"gamelogs/{game_id}.gamelog", Filename="game.gamelog"
-)
+# s3 = boto3.client("s3")
+# s3.download_file(
+#     Bucket="kekule-web-private", Key=f"gamelogs/{game_id}.gamelog", Filename="game.gamelog"
+# )
 
 with open('game.gamelog', 'r') as file:
     content = file.read()
@@ -138,7 +139,13 @@ for turn in content:
                     f"Token outside board! To many stray Tokens. Please check the log file {game_id}.gamelog, round {round_id}. Terminating")
     data.add_turn(turn)
 
+rtokens = []
+btokens = []
+
 for turn_number in range(1, data.get_number_turns()):
+    rcount = 0
+    bcount = 0
+    all_draw = []
     turn = data.get_turn(turn_number)
 
     img = Image.new("RGB", (1920, 1080))
@@ -177,10 +184,12 @@ for turn_number in range(1, data.get_number_turns()):
             rgb = (clamp(220 - (11 * int(tup[2])), 0, 255), clamp(220 - (11 * int(tup[2])), 0, 255), 255)
             hex_result = "".join([format(val, '02X') for val in rgb])
             outline_cl = 'blue'
+            bcount += 1
         elif tup[3] == 'R':
             rgb = (255, clamp(220 - (11 * int(tup[2])), 0, 255), clamp(220 - (11 * int(tup[2])), 0, 255))
             hex_result = "".join([format(val, '02X') for val in rgb])
             outline_cl = 'red'
+            rcount += 1
 
         # TODO change to make sprit 3d
         bottom_coords = [(convert_coords(tup[0] * 10, (tup[1] * 10) + 10)),
@@ -202,24 +211,39 @@ for turn_number in range(1, data.get_number_turns()):
         int_coords = top_coords.copy()[1:]
         int_coords.sort(reverse=True)
         fill_coords.extend(int_coords)
+        all_draw.append({"fill": fill_coords,
+                         "bottom": bottom_coords,
+                         "top": top_coords,
+                         "hex": hex_result,
+                         "outline": outline_cl
+                         })
 
-        img1.polygon(
-            fill_coords,
-            fill=f'#{hex_result}'
-        )
-
+    for token in all_draw:
         img1.line(
-            bottom_coords,
-            fill=outline_cl,
+            token["bottom"],
+            fill=token["outline"],
         )
 
+    for token in all_draw:
         img1.polygon(
-            top_coords,
-            fill=f'#{hex_result}',
-            outline=outline_cl
+            token["fill"],
+            fill=f'#{token["hex"]}'
         )
 
-        img.save('test.png')
+    for token in all_draw:
+        img1.polygon(
+            token["top"],
+            fill=f'#{token["hex"]}',
+            outline=token["outline"]
+        )
+
+    rtokens.append(rcount)
+    btokens.append(bcount)
+    x = [i for i in range(len(btokens))]
+
+    plot = pyplot.plot(rtokens, x)
+
+    img.save('test.png')
 
     img.save(f"{turn_number}.png")
 
