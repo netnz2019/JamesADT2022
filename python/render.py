@@ -102,11 +102,16 @@ arg_parser.add_argument('RID',
                         type=int,
                         choices=range(1, 12),
                         help='Round ID')
+arg_parser.add_argument('--speed', metavar='Speed', type=float, default=100, help='Speed of output video in %')
+
+arg_parser.add_argument('--dark', metavar='Dark mode', help='Enable dark mode', action="store_true")
 
 args = arg_parser.parse_args()
 
 game_id = args.GID
 round_id = args.RID
+speed = args.speed
+dark = args.dark
 
 game_info = requests.request('GET', f"{API_BASE_URL}/{game_id}/", headers={'Authorization': API_AUTH}).json()
 
@@ -154,8 +159,10 @@ for turn_number in range(1, data.get_number_turns()):
 
     img = Image.new("RGB", (1920, 1080))
     img1 = ImageDraw.Draw(img)
-    img1.rectangle((0, 0) + img.size, fill='white')
+    img1.rectangle((0, 0) + img.size, fill='black')
 
+    if dark:
+        plt.style.use('dark_background')
     img1.polygon(
         [(convert_coords(0, 0)), (convert_coords(0, 1010)), (convert_coords(1010, 1010)), (convert_coords(1010, 0))],
         "white", "black")
@@ -248,6 +255,8 @@ for turn_number in range(1, data.get_number_turns()):
     bstr_all.append(bstr)
     x = [i for i in range(len(bstr_all))]
 
+    if dark:
+        plt.style.use('dark_background')
     plt.plot(x, rstr_all, color='red')
     plt.plot(x, bstr_all, color='blue')
     plt.xlabel("Turn Number")
@@ -264,6 +273,8 @@ for turn_number in range(1, data.get_number_turns()):
     img_buf.close()
     img_buf = io.BytesIO()
 
+    if dark:
+        plt.style.use('dark_background')
     plt.hist(hist, histtype='bar', label=['blue', 'red'], color=['blue', 'red'], log=True)
     plt.ylabel("Number")
     plt.xlabel("Strength")
@@ -289,7 +300,7 @@ for turn_number in range(1, data.get_number_turns()):
 
     img.save(f"{turn_number}.png")
 
-convert_frames_to_video(os.getcwd(), f'{game_id}_{round_id}.mp4', 24)
+convert_frames_to_video(os.getcwd(), f'{game_id}_{round_id}.mp4', 24 * (speed / 100))
 
 # s3.upload_file(f'{game_id}_{round_id}.mp4', "kekule-web-media", f'video/{game_id}_{round_id}.mp4',)
 
