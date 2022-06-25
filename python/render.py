@@ -8,7 +8,7 @@ import argparse
 import warnings
 from natsort import natsorted
 from math import cos, sin, pi
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 from matplotlib import pyplot as plt
 import moviepy.editor as moviepy
 
@@ -107,6 +107,8 @@ args = arg_parser.parse_args()
 
 game_id = args.GID
 round_id = args.RID
+
+game_info = requests.request('GET', f"{API_BASE_URL}/{game_id}/", headers={'Authorization': API_AUTH}).json()
 
 # Uncomment to test
 # s3 = boto3.client("s3")
@@ -263,12 +265,27 @@ for turn_number in range(1, data.get_number_turns()):
     img_buf = io.BytesIO()
 
     plt.hist(hist, histtype='bar', label=['blue', 'red'], color=['blue', 'red'], log=True)
+    plt.ylabel("Number")
+    plt.xlabel("Strength")
     plt.legend()
     plt.savefig(img_buf, format='png')
     plt.close()
     plot = Image.open(img_buf)
     plot.thumbnail((400, 400), Image.ANTIALIAS)
     img.paste(plot, (40, 750))
+
+    Font20 = ImageFont.truetype('DejaVuSans.ttf', 20)
+    Font10 = ImageFont.truetype('DejaVuSans.ttf', 10)
+
+    # Add Text to an image
+    img1.text((1650, 785), "# Tokens", font=Font20, fill="black")
+    img1.text((1650, 815), f"Red {len(hist[1])}", font=Font20, fill="red")
+    img1.text((1650, 845), f"Blue {len(hist[0])}", font=Font20, fill="blue")
+
+    img1.rectangle([(1650, 70), (1690, 90)], fill="blue")
+    img1.text((1710, 70), game_info['player1'], font=Font20, fill="black")
+    img1.rectangle([(1650, 110), (1690, 130)], fill="red")
+    img1.text((1710, 110), game_info['player2'], font=Font20, fill="black")
 
     img.save(f"{turn_number}.png")
 
