@@ -146,6 +146,7 @@ bstr_all = []
 for turn_number in range(1, data.get_number_turns()):
     rstr = 0
     bstr = 0
+    hist = [[], []]
     all_draw = []
     turn = data.get_turn(turn_number)
 
@@ -186,11 +187,14 @@ for turn_number in range(1, data.get_number_turns()):
             hex_result = "".join([format(val, '02X') for val in rgb])
             outline_cl = 'blue'
             bstr += tup[2]
+            hist[0].append(tup[2])
         elif tup[3] == 'R':
             rgb = (255, clamp(220 - (11 * int(tup[2])), 0, 255), clamp(220 - (11 * int(tup[2])), 0, 255))
             hex_result = "".join([format(val, '02X') for val in rgb])
             outline_cl = 'red'
             rstr += tup[2]
+            hist[1].append(tup[2])
+
 
         # TODO change to make sprit 3d
         bottom_coords = [(convert_coords(tup[0] * 10, (tup[1] * 10) + 10)),
@@ -250,11 +254,21 @@ for turn_number in range(1, data.get_number_turns()):
     img_buf = io.BytesIO()
 
     plt.savefig(img_buf, format='png')
+    plt.close()
     plot = Image.open(img_buf)
     plot.thumbnail((400, 400), Image.ANTIALIAS)
     img.paste(plot, (40, 0))
 
-    img.save('test.png')
+    img_buf.close()
+    img_buf = io.BytesIO()
+
+    plt.hist(hist, histtype='bar', label=['blue', 'red'], color=['blue', 'red'], log=True)
+    plt.legend()
+    plt.savefig(img_buf, format='png')
+    plt.close()
+    plot = Image.open(img_buf)
+    plot.thumbnail((400, 400), Image.ANTIALIAS)
+    img.paste(plot, (40, 750))
 
     img.save(f"{turn_number}.png")
 
