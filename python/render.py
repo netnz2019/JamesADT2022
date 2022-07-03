@@ -104,7 +104,7 @@ arg_parser.add_argument('RID',
                         help='Round ID')
 arg_parser.add_argument('--speed', metavar='Speed', type=float, default=100, help='Speed of output video in %')
 
-arg_parser.add_argument('--dark', metavar='Dark mode', help='Enable dark mode', action="store_true")
+arg_parser.add_argument('--dark', help='Enable dark mode', action="store_true")
 
 args = arg_parser.parse_args()
 
@@ -116,10 +116,10 @@ dark = args.dark
 game_info = requests.request('GET', f"{API_BASE_URL}/{game_id}/", headers={'Authorization': API_AUTH}).json()
 
 # Uncomment to test
-# s3 = boto3.client("s3")
-# s3.download_file(
-#     Bucket="kekule-web-private", Key=f"gamelogs/{game_id}.gamelog", Filename="game.gamelog"
-# )
+s3 = boto3.client("s3")
+s3.download_file(
+    Bucket="kekule-web-private", Key=f"gamelogs/{game_id}.gamelog", Filename="game.gamelog"
+)
 
 with open('game.gamelog', 'r') as file:
     content = file.read()
@@ -159,13 +159,21 @@ for turn_number in range(1, data.get_number_turns()):
 
     img = Image.new("RGB", (1920, 1080))
     img1 = ImageDraw.Draw(img)
-    img1.rectangle((0, 0) + img.size, fill='black')
+    if dark:
+        img1.rectangle((0, 0) + img.size, fill='black')
+        white = "black"
+        black = "white"
+    else:
+        img1.rectangle((0, 0) + img.size, fill='white')
+        line_fill = "#b4b4b4"
+        white = "white"
+        black = "black"
 
     if dark:
         plt.style.use('dark_background')
     img1.polygon(
         [(convert_coords(0, 0)), (convert_coords(0, 1010)), (convert_coords(1010, 1010)), (convert_coords(1010, 0))],
-        "white", "black")
+        white, black)
 
     # vertical lines at an interval of "line_distance" pixel
     for x in range(10, 1010, 10):
@@ -289,14 +297,14 @@ for turn_number in range(1, data.get_number_turns()):
     Font10 = ImageFont.truetype('DejaVuSans.ttf', 10)
 
     # Add Text to an image
-    img1.text((1650, 785), "# Tokens", font=Font20, fill="black")
+    img1.text((1650, 785), "# Tokens", font=Font20, fill=black)
     img1.text((1650, 815), f"Red {len(hist[1])}", font=Font20, fill="red")
     img1.text((1650, 845), f"Blue {len(hist[0])}", font=Font20, fill="blue")
 
     img1.rectangle([(1650, 70), (1690, 90)], fill="blue")
-    img1.text((1710, 70), game_info['player1'], font=Font20, fill="black")
+    img1.text((1710, 70), game_info['player1'], font=Font20, fill=black)
     img1.rectangle([(1650, 110), (1690, 130)], fill="red")
-    img1.text((1710, 110), game_info['player2'], font=Font20, fill="black")
+    img1.text((1710, 110), game_info['player2'], font=Font20, fill=black)
 
     img.save(f"{turn_number}.png")
 
@@ -305,8 +313,8 @@ convert_frames_to_video(os.getcwd(), f'{game_id}_{round_id}.mp4', 24 * (speed / 
 # s3.upload_file(f'{game_id}_{round_id}.mp4', "kekule-web-media", f'video/{game_id}_{round_id}.mp4',)
 
 
-payload = {'rendered': True}
-headers = {'Authorization': API_AUTH}
-url = f"https://kekule.games/GL/API/Gamelist/{game_id}/"
-
-response = requests.request("PUT", url, headers=headers, data=payload)
+# payload = {'rendered': True}
+# headers = {'Authorization': API_AUTH}
+# url = f"https://kekule.games/GL/API/Gamelist/{game_id}/"
+#
+# response = requests.request("PUT", url, headers=headers, data=payload)
