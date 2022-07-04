@@ -15,55 +15,115 @@ from matplotlib import pyplot as plt
 API_BASE_URL = "https://kekule.games/GL/API/Gamelist"
 
 
-
 def check_gid_input(value):
     """
     This Function checks the game ID against the Kekule Games Server to ensure that the supplied game actually exists.
     If the ID does NOT exist it raises an argparse error
 
     :param value: Input Game ID
-    :return: Input Game ID if it is valid
+    :type value: str
+    :return: Input Game ID
+    :rtype: int
     """
+
     ivalue = int(value)
 
     # no game ID should be less than 0. check this first to avoid unnecessary requests to the Kekule Games API
     if ivalue < 0:
         raise argparse.ArgumentTypeError("%s is an invalid Game ID" % value)
     elif requests.request('GET', f"{API_BASE_URL}/{ivalue}/", headers={'Authorization': API_AUTH}).status_code != 200:
+        # if GID does not exist
         raise argparse.ArgumentTypeError("%s Does not exist on the system" % value)
+
     return ivalue
 
 
 def convert_coords(x, y):
+    """
+    This Function takes non-oblique (2D) image coordinates and translates them 30 degrees to make the coordinates
+    oblique
+
+    :param x: 2D x coordinate
+    :type x: int
+    :param y: 2D y coordinate
+    :type y: int
+    :return: Oblique (3D) coordinates
+    :rtype: tuple[int, int]
+    """
+
+    # math to convert coords
     x_prime = 960 + cos(30 * pi / 180) * x - cos(30 * pi / 180) * y
     y_prime = sin(30 * pi / 180) * x + sin(30 * pi / 180) * y
     return int(x_prime), int(y_prime)
-    # return x, y
 
 
 def clamp(n, minn, maxn):
+    """
+    Clamps values to remain within specified range
+    :param n: input number
+    :type n: float
+    :param minn: Minimum to clamp to
+    :type minn: int
+    :param maxn: Maximum to clamp to
+    :type maxn: int
+    :return: clamped input number
+    :rtype: float
+    """
+
     return max(min(maxn, n), minn)
 
 
 class Round:
-    class Turn:
-        list = []
-        number = 0
+    """
+    This class represents a Game Round. A round comprises turns
+    """
 
-    _Turns = {}
-    __turn_counter = 0
+    class Turn:
+        """
+        This class represents a Round Turn.
+        """
+
+        list = []  # Turn list
+        number = 0  # Turn number within round
+
+    _Turns = {}  # Hidden list of turns
+    __turn_counter = 0  # counter of how many turns are in the round.
 
     def get_turn(self, number):
+        """
+        This function gets a specified turn from a supplied number
+        :param number: Wanted turn number
+        :type number: int
+        :return: specified Turn object
+        :rtype: Round.Turn
+        """
+
+        # Try to get the specified turn raise a key error if it doesn't exist
         try:
             return self._Turns[number]
         except KeyError:
             raise KeyError("That Turn does not exist within this Round")
 
     def get_number_turns(self):
+        """
+        Get how many turns in round
+        :return: Amount of turns within round
+        :rtype: int
+        """
+
         return len(self._Turns)
 
-    def add_turn(self, in_list, t_number=-1):
-        if t_number != -1:
+    def add_turn(self, in_list, t_number=None):
+        """
+        Adds a Turn to the Round.
+
+        :param in_list: list representation of the turn
+        :type in_list: list
+        :param t_number: Turn number
+        :type t_number: int
+        """
+
+        if t_number is not None:
             number = t_number
         else:
             self.__turn_counter += 1
@@ -75,6 +135,17 @@ class Round:
 
 
 def convert_frames_to_video(pathIn, pathOut, fps):
+    """
+    Collates all .png files in a directory into a mp4 file and saves to disk
+
+    :param pathIn: file path to images
+    :type pathIn: str
+    :param pathOut: Path to save mp4 to
+    :type pathOut: str
+    :param fps: Frame rate of the video
+    :type fps: int
+    """
+
     frame_size = (1920, 1080)
 
     out = cv2.VideoWriter(pathOut, cv2.VideoWriter_fourcc(*'avc1'), fps, frame_size)
@@ -88,12 +159,10 @@ def convert_frames_to_video(pathIn, pathOut, fps):
 
 def main():
 
-    # Get Kekule Games API credentials from the environment
-    API_AUTH = os.environ['API_KEY']
-
+    # set up argument handler
     arg_parser = argparse.ArgumentParser(description='Render Round')
 
-    # Add the arguments
+    # Add arguments
     arg_parser.add_argument('GID',
                             metavar='Game ID',
                             type=check_gid_input,
@@ -104,30 +173,39 @@ def main():
                             type=int,
                             choices=range(1, 12),
                             help='Round ID')
+
+    # Add keyword arguments
     arg_parser.add_argument('--speed', metavar='Speed', type=float, default=100, help='Speed of output video in %')
 
     arg_parser.add_argument('--dark', help='Enable dark mode', action="store_true")
 
+    arg_parser.add_argument('--offline', help='Disable S3 connectivity', action="store_false")
+
     args = arg_parser.parse_args()
 
+    # map arguments to variables
     game_id = args.GID
     round_id = args.RID
     speed = args.speed
     dark = args.dark
+    online = args.offline
 
+    # get info about the game form the kekule games API
     game_info = requests.request('GET', f"{API_BASE_URL}/{game_id}/", headers={'Authorization': API_AUTH}).json()
 
-    # # Uncomment to test
-    # s3 = boto3.client("s3")
-    # s3.download_file(
-    #     Bucket="kekule-web-private", Key=f"gamelogs/{game_id}.gamelog", Filename="game.gamelog"
-    # )
+    if online: # if online mode enabled
+        s3 = boto3.client("s3")  # set up s3 connection
+        # download gamelog from S3 bucket and save
+        s3.download_file(
+            Bucket="kekule-web-private", Key=f"gamelogs/{game_id}.gamelog", Filename="game.gamelog"
+        )
 
+    # open gamelog
     with open('game.gamelog', 'r') as file:
         content = file.read()
-        content = content.partition(f'game = {round_id}')
-        content = content[2].partition(f'game = {int(round_id) + 1}')
-        content = content[0].split('\n')
+        content = content.partition(f'game = {round_id}')  # partition to get the start of game specified
+        content = content[2].partition(f'game = {int(round_id) + 1}')  # get lines to the end of the game
+        content = content[0].split('\n')  # split into list by new line
         if content[0] == '':
             content.pop(0)
         if content[-1] == '':
@@ -311,14 +389,21 @@ def main():
 
     convert_frames_to_video(os.getcwd(), f'{game_id}_{round_id}.mp4', 24 * (speed / 100))
 
-    # s3.upload_file(f'{game_id}_{round_id}.mp4', "kekule-web-media", f'video/{game_id}_{round_id}.mp4',)
+    if online:
+
+        s3.upload_file(f'{game_id}_{round_id}.mp4', "kekule-web-media", f'video/{game_id}_{round_id}.mp4',)
 
 
-    # payload = {'rendered': True}
-    # headers = {'Authorization': API_AUTH}
-    # url = f"https://kekule.games/GL/API/Gamelist/{game_id}/"
-    #
-    # response = requests.request("PUT", url, headers=headers, data=payload)
+        payload = {'rendered': True}
+        headers = {'Authorization': API_AUTH}
+        url = f"https://kekule.games/GL/API/Gamelist/{game_id}/"
+
+        response = requests.request("PUT", url, headers=headers, data=payload)
+        if response.status_code != 200:
+            warnings.warn("Possible failure communicating to Kekule Games API. Please check server log", Warning)
+
 
 if __name__ == "__main__":
+    # Get Kekule Games API credentials from the environment
+    API_AUTH = os.environ['API_KEY']
     main()
