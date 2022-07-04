@@ -35,7 +35,7 @@ def check_gid_input(value):
 
 
 def convert_coords(x, y):
-    x_prime = 960 + cos(30 * pi / 180) * x - cos(30 * pi / 180) * y
+    x_prime = 961 + cos(30 * pi / 180) * x - cos(30 * pi / 180) * y
     y_prime = sin(30 * pi / 180) * x + sin(30 * pi / 180) * y
     return int(x_prime), int(y_prime)
     # return x, y
