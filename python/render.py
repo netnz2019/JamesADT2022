@@ -75,12 +75,20 @@ def clamp(n, minn, maxn):
 
 class Round:
     """
-    This class represents a Game Round. A round comprises turns
+    This class represents a Game Round. A round comprises turns.
+
+    The class holds two hidden variables:
+    _Turns: A dictionary that holds all the turns within this round.
+    __turn_counter: An integer used by get_number_turns to return the amount of turns within the round and
+     used by add_turn to automatically set the turn number if it is undefined on call.
     """
 
     class Turn:
         """
         This class represents a Turn.
+        It holds two Variables:
+        list: list representation of turn data
+        number: the turn number
         """
 
         list = []  # Turn list
@@ -258,7 +266,7 @@ def main():
         for y in range(10, 1010, 10):
             img1.line(convert_coords(0, y) + convert_coords(1010, y), fill="#b4b4b4")
 
-        # draw grey box below board
+        # draw grey box's below board
         img1.polygon(
             [(convert_coords(0, 1010)),
              (85, 523),
@@ -267,7 +275,6 @@ def main():
             fill='grey'
         )
 
-        # draw grey box below board
         img1.polygon(
             [(1835, 505),
              (1835, 525),
