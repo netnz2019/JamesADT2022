@@ -1,3 +1,12 @@
+"""
+Kekule Games' Match renderer written by James Avenell for Kekule Games Ltd.
+
+This program takes a Game ID and Round ID as an input it then pulls the specified .gamelog file from a S3 bucket
+and extracts a list representation of each Turn from said file. After this is complete it then loops through each turn
+converting it into a PNG image and saving to disk. After all turns have been rendered it then combines all of these
+images into a video and uploads that to a different S3 bucket.
+"""
+
 import os
 import io
 import cv2
