@@ -264,31 +264,31 @@ def main():
         if dark:
             plt.style.use('dark_background')
         img1.polygon(
-            [(convert_coords(0, 0)), (convert_coords(0, 1010)), (convert_coords(1010, 1010)), (convert_coords(1010, 0))],
+            [(convert_coords(0, 0)), (convert_coords(0, 1000)), (convert_coords(1000, 1000)), (convert_coords(1000, 0))],
             white, black)  # make board outline
 
         """ The following creates squares within the previously made board"""
         # vertical lines at an interval of "line_distance" pixel
-        for x in range(10, 1010, 10):
-            img1.line(convert_coords(x, 0) + convert_coords(x, 1010), fill="#b4b4b4")
+        for x in range(10, 1000, 10):
+            img1.line(convert_coords(x, 0) + convert_coords(x, 1000), fill="#b4b4b4")
         # horizontal lines at an interval of "line_distance" pixel
-        for y in range(10, 1010, 10):
-            img1.line(convert_coords(0, y) + convert_coords(1010, y), fill="#b4b4b4")
+        for y in range(10, 1000, 10):
+            img1.line(convert_coords(0, y) + convert_coords(1000, y), fill="#b4b4b4")
 
         # draw grey box's below board
         img1.polygon(
-            [(convert_coords(0, 1010)),
-             (85, 523),
-             (960, 1030),
-             (960, 1010)],
+            [(convert_coords(0, 1000)),
+             (93, 519),
+             (960, 1020),
+             (960, 1000)],
             fill='grey'
         )
 
         img1.polygon(
-            [(1835, 505),
-             (1835, 525),
-             (960, 1030),
-             (960, 1010)],
+            [(1826, 499),
+             (1826, 519),
+             (960, 1020),
+             (960, 1000)],
             fill='grey'
         )
 
