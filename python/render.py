@@ -211,6 +211,7 @@ def main():
     game_info = requests.request('GET', f"{API_BASE_URL}/{game_id}/", headers={'Authorization': API_AUTH}).json()
 
     if online:  # if online mode enabled
+        print("Downloading Gamelog")
         s3 = boto3.client("s3")  # set up s3 connection
         # download gamelog from S3 bucket and save
         s3.download_file(
@@ -218,6 +219,7 @@ def main():
         )
 
     # open gamelog
+    print("Ingesting Gamelog")
     with open('game.gamelog', 'r') as file:
         content = file.read()
         content = content.partition(f'game = {round_id}')  # partition to get the start of game specified
@@ -232,6 +234,7 @@ def main():
             content.pop(-1)
     data = Round()  # create round
 
+    print("Validating Gamelog")
     for turn in content:  # for turn in input file
         turn = eval(turn)
         for tup in turn:  # for tuple in turn list
@@ -244,6 +247,8 @@ def main():
     bstr_all = []  # persistent across turns blue strength data
 
     for turn_number in range(1, data.get_number_turns()):
+        if turn_number % 10 == 0:
+            print(f"Rendering Turn {turn_number}")
         rstr = 0  # red strength
         bstr = 0  # blue strength
         hist = [[], []]  # data for histogram
@@ -423,10 +428,11 @@ def main():
 
         img.save(f"{turn_number}.png")  # save main image to disk
 
+    print("Rendering to mp4")
     convert_frames_to_video(os.getcwd(), f'{game_id}_{round_id}.mp4', 24 * (speed / 100))  # convert all images to video
 
     if online:  # if online mode enabled
-
+        print("uploading mp4 & notifying")
         # Upload resultant mp4 video to S3
         s3.upload_file(f'{game_id}_{round_id}.mp4', "kekule-web-media", f'video/{game_id}_{round_id}.mp4',)
 
@@ -437,6 +443,8 @@ def main():
         response = requests.request("PUT", url, headers=headers, data=payload)  # Update Kekule Games' system via API
         if response.status_code != 200:
             warnings.warn("Possible failure communicating to Kekule Games API. Please check server log", Warning)
+
+    print("Complete")
 
 
 if __name__ == "__main__":
